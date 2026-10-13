@@ -1,0 +1,29 @@
+default_model: black-forest-labs/FLUX.2-klein-9B
+MODEL_IDLE_TIMEOUT: 300
+GPU_MEMORY_FRACTION: 0.5
+prompt_enhancement_llm:
+  url: http://localhost:8000/v1
+  model: Qwen/Qwen3.6-35B-A3B
+aspect_ratios:
+  "1:1": [1328, 1328]
+  "16:9": [1664, 928]
+  "9:16": [928, 1664]
+  "4:3": [1472, 1140]
+  "3:4": [1140, 1472]
+  "3:2": [1584, 1056]
+  "2:3": [1056, 1584]
+models:
+  - id: black-forest-labs/FLUX.2-klein-9B
+    type: text_image
+
+styles:
+  - name: Photorealism
+    prompt: Photorealistic image with natural lighting, realistic materials and textures, accurate proportions, fine detail, and convincing depth of field.
+  - name: Illustration & Cartoon
+    prompt: Polished illustration with expressive shapes, clean silhouettes, appealing character design, confident linework, and vibrant harmonious colors.
+  - name: Artistic & Painterly
+    prompt: Painterly fine-art treatment with expressive brushwork, layered texture, nuanced color, atmospheric depth, and a thoughtfully composed canvas.
+  - name: Ghibli
+    prompt: Ghibli-inspired whimsical hand-painted Japanese animation aesthetic, with warm expressive characters, lush natural scenery, soft watercolor backgrounds, gentle sunlight, richly observed everyday details, subtle magical elements, and a nostalgic sense of wonder.
+  - name: Typography & Text Rendering
+    prompt: Prioritize crisp, legible, correctly spelled text with accurate letterforms, balanced kerning, clear hierarchy, and clean graphic-design composition.

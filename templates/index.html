@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Generate and edit images with FLUX and Diffusers.">
+  <title>ai-image-generator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f5f2ea;
+      --muted: #a8a69f;
+      --panel: rgba(25, 26, 29, .82);
+      --line: rgba(255, 255, 255, .12);
+      --accent: #ff774d;
+      --accent-2: #ffb44d;
+      --danger: #ff8c85;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 119, 77, .19), transparent 34rem),
+        radial-gradient(circle at 88% 85%, rgba(99, 89, 255, .15), transparent 38rem),
+        #101114;
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 38px 0 52px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; letter-spacing: -.02em; }
+    .mark { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 8px 30px rgba(255,119,77,.28); }
+    .status { color: var(--muted); font-size: 13px; }
+    .status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #77d69b; box-shadow: 0 0 12px #77d69b; }
+    main { display: grid; grid-template-columns: minmax(320px, .9fr) minmax(360px, 1.1fr); gap: 22px; }
+    .panel { border: 1px solid var(--line); border-radius: 24px; background: var(--panel); box-shadow: 0 26px 80px rgba(0,0,0,.28); backdrop-filter: blur(18px); }
+    .controls { padding: 26px; }
+    h1 { margin: 0 0 8px; font-size: clamp(31px, 4vw, 50px); line-height: 1.02; letter-spacing: -.055em; }
+    .intro { margin: 0 0 28px; color: var(--muted); max-width: 45ch; }
+    label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+    textarea, select, input[type="number"] { width: 100%; border: 1px solid var(--line); border-radius: 14px; outline: none; color: var(--ink); background: rgba(255,255,255,.045); transition: border-color .2s, box-shadow .2s; }
+    textarea { min-height: 150px; padding: 15px; resize: vertical; }
+    select, input[type="number"] { padding: 12px 14px; color-scheme: dark; }
+    select option { color: var(--ink); background: #1b1c20; }
+    textarea:focus, select:focus, input[type="number"]:focus { border-color: rgba(255,119,77,.72); box-shadow: 0 0 0 3px rgba(255,119,77,.12); }
+    .prompt-actions { display: flex; align-items: center; margin-top: 8px; }
+    .discard-enhancement { display: none; padding: 8px 12px; border: 0; color: var(--muted); background: transparent; font-size: 13px; cursor: pointer; }
+    .discard-enhancement:hover { color: var(--ink); }
+    .enhance { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: rgba(255,255,255,.06); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .prompt-actions .enhance { margin-left: auto; }
+    .enhance:hover { border-color: rgba(255,119,77,.72); background: rgba(255,119,77,.09); }
+    .enhance:disabled { cursor: wait; opacity: .55; }
+    .field { margin-top: 20px; }
+    .dropzone { display: block; padding: 21px; border: 1px dashed rgba(255,255,255,.25); border-radius: 16px; text-align: center; cursor: pointer; transition: .2s ease; }
+    .dropzone:hover, .dropzone.dragging { border-color: var(--accent); background: rgba(255,119,77,.08); }
+    .dropzone.disabled { cursor: not-allowed; opacity: .48; }
+    .dropzone.disabled:hover { border-color: rgba(255,255,255,.25); background: transparent; }
+    .dropzone strong { display: block; margin-bottom: 3px; }
+    .dropzone span { color: var(--muted); font-size: 13px; }
+    #images { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .files { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+    .file { position: relative; min-width: 0; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: #15161a; }
+    .file img { width: 100%; height: 100%; object-fit: cover; }
+    .file .archive { height: 100%; display: grid; place-items: center; padding: 5px; color: var(--muted); font-size: 10px; text-align: center; overflow-wrap: anywhere; }
+    .file button { position: absolute; top: 4px; right: 4px; width: 23px; height: 23px; padding: 0; border: 0; border-radius: 50%; color: white; background: rgba(0,0,0,.72); cursor: pointer; }
+    .generate { width: 100%; margin-top: 24px; padding: 14px 18px; border: 0; border-radius: 14px; color: #18110d; background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-weight: 800; cursor: pointer; box-shadow: 0 12px 30px rgba(255,119,77,.22); transition: transform .15s, opacity .15s; }
+    .generate:hover { transform: translateY(-1px); }
+    .generate:disabled { cursor: wait; opacity: .62; transform: none; }
+    .error { min-height: 22px; margin: 10px 0 -10px; color: var(--danger); font-size: 13px; }
+    .result { min-height: 660px; padding: 14px; display: flex; flex-direction: column; }
+    .canvas { flex: 1; min-height: 500px; display: grid; place-items: center; overflow: hidden; border-radius: 16px; background: repeating-conic-gradient(#191a1e 0 25%, #15161a 0 50%) 0 / 26px 26px; }
+    .result-grid { width: 100%; padding: 10px; display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .result-grid img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #111; border-radius: 10px; }
+    .empty { max-width: 280px; color: #777872; text-align: center; }
+    .spinner { display: none; width: 42px; height: 42px; border: 3px solid rgba(255,255,255,.15); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .resultbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 4px 0; }
+    .resultbar span { color: var(--muted); font-size: 13px; }
+    .result-actions { display: flex; gap: 8px; }
+    .result-action { display: none; padding: 9px 14px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); text-decoration: none; background: rgba(255,255,255,.05); cursor: pointer; }
+    button.result-action:disabled { color: var(--muted); cursor: default; }
+    .history { margin-top: 22px; padding: 22px; }
+    .history-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .history h2 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
+    .history-head span { color: var(--muted); font-size: 13px; }
+    .history-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .history-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: rgba(255,255,255,.035); }
+    .history-card > img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #15161a; cursor: pointer; }
+    .history-card > img:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+    .history-info { padding: 10px; }
+    .history-name { overflow: hidden; color: var(--ink); font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .history-meta { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .history-actions { display: grid; grid-template-columns: 1fr auto; gap: 5px; margin-top: 9px; }
+    .history-actions button, .history-actions a { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: rgba(255,255,255,.045); font-size: 11px; text-align: center; text-decoration: none; cursor: pointer; }
+    .history-actions .delete { color: var(--danger); }
+    .history-empty { grid-column: 1 / -1; padding: 35px; color: var(--muted); text-align: center; }
+    .image-overlay { width: 100vw; max-width: none; height: 100vh; max-height: none; margin: 0; padding: 0; border: 0; color: var(--ink); background: rgba(8, 9, 11, .94); }
+    .image-overlay::backdrop { background: rgba(8, 9, 11, .94); }
+    .image-overlay[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .overlay-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 18px; border-bottom: 1px solid var(--line); background: rgba(16, 17, 20, .9); }
+    .overlay-title { overflow: hidden; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .overlay-close { flex: none; width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: rgba(255,255,255,.07); font-size: 24px; line-height: 1; cursor: pointer; }
+    .overlay-content { overflow: auto; padding: 24px; }
+    .details { width: min(1050px, 100%); margin: auto; }
+    .details h3 { margin: 22px 0 10px; }
+    .details-prompt { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: rgba(255,255,255,.04); white-space: pre-wrap; }
+    .details-meta { color: var(--muted); }
+    .details-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .details-grid figure { min-width: 0; margin: 0; }
+    .details-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 12px; background: #111; cursor: zoom-in; }
+    .details-grid img:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .details-grid figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--muted); font-size: 12px; }
+    .reference-action { flex: none; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: rgba(255,255,255,.06); font-size: 11px; cursor: pointer; }
+    .reference-action:disabled { color: var(--muted); cursor: default; }
+    .full-image-content { min-height: 0; display: grid; place-items: center; padding: 20px; overflow: auto; }
+    .full-image-content img { display: block; max-width: 100%; height: auto; max-height: calc(100vh - 100px); object-fit: contain; }
+    @media (max-width: 820px) {
+      .shell { width: min(100% - 20px, 620px); padding-top: 22px; }
+      main { grid-template-columns: 1fr; }
+      .result { min-height: 480px; }
+      .canvas { min-height: 400px; }
+      .history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .resultbar { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 420px) {
+      .history-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="mark" aria-hidden="true"></span>ai-image-generator</div>
+      <div class="status">Service ready</div>
+    </header>
+    <main>
+      <section class="panel controls">
+        <h1>Make an image worth keeping.</h1>
+        <p class="intro">Describe something new, upload visual references, or combine both.</p>
+        <form id="generate-form">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" name="prompt" placeholder="A quiet coastal town at blue hour, cinematic light…"></textarea>
+          {% if prompt_enhancement_enabled %}
+          <div class="prompt-actions">
+            <button class="discard-enhancement" id="discard-enhancement" type="button">Discard</button>
+            <button class="enhance" id="enhance-prompt" type="button">Enhance by LLM</button>
+          </div>
+          {% endif %}
+
+          <div class="field" id="reference-field">
+            <label for="images">Reference images</label>
+            <label class="dropzone" id="dropzone" for="images">
+              <strong>Drop files here or browse</strong>
+              <span id="reference-help">Multiple images, ZIP, or TAR archives</span>
+            </label>
+            <input id="images" name="images" type="file" accept="image/*,.zip,.tar,.tgz,.gz,.bz2,.xz" multiple>
+            <div class="files" id="files"></div>
+          </div>
+
+          <div class="field">
+            <label for="style">Image style</label>
+            <select id="style" name="style">
+              <option value="">Not specified</option>
+              {% for style in styles %}
+              <option value="{{ style }}">{{ style }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="aspect-ratio">Aspect ratio</label>
+            <select id="aspect-ratio" name="aspect_ratio">
+              <option value="">Not Specified</option>
+              {% for name, dimensions in aspect_ratios.items() %}
+              <option value="{{ name }}">{{ name }} — {{ dimensions[0] }} × {{ dimensions[1] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="image-count">Image count</label>
+            <input id="image-count" name="image_count" type="number" min="1" max="4" value="2" required>
+          </div>
+
+          <div class="field">
+            <label for="model">Pretrained model</label>
+            <select id="model" name="pretrained_model">
+              {% for model in models %}
+              <option value="{{ model }}" data-model-type="{{ model_types[model] }}"{% if model == default_model %} selected{% endif %}>{{ model }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="error" id="error" role="alert"></div>
+          <button class="generate" id="submit" type="submit">Generate images</button>
+        </form>
+      </section>
+
+      <section class="panel result" aria-live="polite">
+        <div class="canvas">
+          <div class="empty" id="empty">Your generated images will appear here.</div>
+          <div class="spinner" id="spinner" aria-label="Generating image"></div>
+          <div class="result-grid" id="result-grid"></div>
+        </div>
+        <div class="resultbar">
+          <span id="result-status">Ready when you are</span>
+          <div class="result-actions">
+            <button class="result-action" id="view-request" type="button">View request</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <section class="panel history" aria-labelledby="history-title">
+      <div class="history-head">
+        <div>
+          <h2 id="history-title">Generation history</h2>
+          <span>Saved in the configured output folder</span>
+        </div>
+        <span id="history-count"></span>
+      </div>
+      <div class="history-grid" id="history-grid">
+        <div class="history-empty">Loading history…</div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="image-overlay" id="request-dialog" aria-labelledby="dialog-title">
+    <div class="overlay-bar">
+      <div class="overlay-title" id="dialog-title">Request details</div>
+      <button class="overlay-close" id="dialog-close" type="button" aria-label="Close request details">×</button>
+    </div>
+    <div class="overlay-content" id="dialog-content"></div>
+  </dialog>
+
+  <dialog class="image-overlay" id="image-dialog" aria-labelledby="image-dialog-title">
+    <div class="overlay-bar">
+      <div class="overlay-title" id="image-dialog-title">Full-size image</div>
+      <button class="overlay-close" id="image-dialog-close" type="button" aria-label="Close full-size image">×</button>
+    </div>
+    <div class="full-image-content" id="full-image-content"></div>
+  </dialog>
+
+  <script>
+    const $ = selector => document.querySelector(selector);
+    const form = $('#generate-form');
+    const input = $('#images');
+    const filesView = $('#files');
+    const dropzone = $('#dropzone');
+    const submit = $('#submit');
+    const enhancePrompt = $('#enhance-prompt');
+    const discardEnhancement = $('#discard-enhancement');
+    const promptInput = $('#prompt');
+    const error = $('#error');
+    const empty = $('#empty');
+    const spinner = $('#spinner');
+    const resultGrid = $('#result-grid');
+    const resultStatus = $('#result-status');
+    const viewRequest = $('#view-request');
+    const historyGrid = $('#history-grid');
+    const historyCount = $('#history-count');
+    const modelSelect = $('#model');
+    const referenceHelp = $('#reference-help');
+    const requestDialog = $('#request-dialog');
+    const dialogContent = $('#dialog-content');
+    const dialogTitle = $('#dialog-title');
+    const imageDialog = $('#image-dialog');
+    const imageDialogTitle = $('#image-dialog-title');
+    const fullImageContent = $('#full-image-content');
+    let selectedFiles = [];
+    let currentRequest = null;
+    let originalPrompt = null;
+
+    const modelSupportsImages = () => modelSelect.selectedOptions[0]?.dataset.modelType === 'text_image';
+
+    function updateModelCapabilities() {
+      const enabled = modelSupportsImages();
+      input.disabled = !enabled;
+      dropzone.classList.toggle('disabled', !enabled);
+      dropzone.setAttribute('aria-disabled', String(!enabled));
+      referenceHelp.textContent = enabled ? 'Multiple images, ZIP, or TAR archives' : 'The selected model supports text prompts only';
+      if (!enabled && selectedFiles.length) { selectedFiles = []; renderFiles(); }
+    }
+
+    function renderFiles() {
+      filesView.replaceChildren();
+      selectedFiles.forEach((file, index) => {
+        const tile = document.createElement('div');
+        tile.className = 'file';
+        if (file.type.startsWith('image/')) {
+          const image = new Image();
+          image.alt = file.name;
+          image.src = URL.createObjectURL(file);
+          image.onload = () => URL.revokeObjectURL(image.src);
+          tile.append(image);
+        } else {
+          const label = document.createElement('div');
+          label.className = 'archive';
+          label.textContent = file.name;
+          tile.append(label);
+        }
+        const remove = document.createElement('button');
+        remove.type = 'button'; remove.textContent = '×';
+        remove.setAttribute('aria-label', `Remove ${file.name}`);
+        remove.onclick = () => { selectedFiles.splice(index, 1); renderFiles(); };
+        tile.append(remove); filesView.append(tile);
+      });
+    }
+
+    async function addGeneratedReference(item, button) {
+      button.disabled = true;
+      button.textContent = 'Adding…';
+      try {
+        const response = await fetch(item.url);
+        if (!response.ok) throw new Error('Could not load the generated image');
+        const blob = await response.blob();
+        selectedFiles.push(new File([blob], `${Date.now()}-${item.name}`, { type: blob.type || 'image/png' }));
+        renderFiles();
+        button.textContent = 'Added';
+        resultStatus.textContent = 'Generated image added to the next request';
+      } catch (requestError) {
+        button.disabled = false;
+        button.textContent = 'Try again';
+        error.textContent = requestError.message;
+      }
+    }
+
+    function imageGallery(items, allowReference = false) {
+      const grid = document.createElement('div');
+      grid.className = 'details-grid';
+      items.forEach(item => {
+        const figure = document.createElement('figure');
+        const image = new Image(); image.src = item.url; image.alt = item.name; image.loading = 'lazy'; image.tabIndex = 0;
+        image.onclick = () => openFullImage(item);
+        image.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openFullImage(item); } };
+        const caption = document.createElement('figcaption');
+        const link = document.createElement('a'); link.href = item.url; link.download = item.name; link.textContent = item.name;
+        caption.append(link);
+        if (allowReference) {
+          const reference = document.createElement('button');
+          reference.type = 'button'; reference.className = 'reference-action'; reference.textContent = 'Use as reference';
+          reference.disabled = !modelSupportsImages();
+          reference.title = reference.disabled ? 'The selected model supports text prompts only' : '';
+          reference.onclick = () => addGeneratedReference(item, reference);
+          caption.append(reference);
+        }
+        figure.append(image, caption); grid.append(figure);
+      });
+      return grid;
+    }
+
+    function openFullImage(item) {
+      imageDialogTitle.textContent = item.name;
+      const image = new Image(); image.src = item.url; image.alt = item.name;
+      fullImageContent.replaceChildren(image);
+      imageDialog.showModal();
+    }
+
+    function openDetails(item) {
+      dialogTitle.textContent = item.id;
+      dialogContent.replaceChildren();
+      const details = document.createElement('div'); details.className = 'details';
+      const meta = document.createElement('div'); meta.className = 'details-meta';
+      meta.textContent = `${new Date(item.created_at).toLocaleString()} · ${item.model} · ${item.image_count} images`;
+      const promptHeading = document.createElement('h3'); promptHeading.textContent = 'Source prompt';
+      const prompt = document.createElement('p'); prompt.className = 'details-prompt'; prompt.textContent = item.prompt || '(No text prompt)';
+      details.append(meta, promptHeading, prompt);
+      if (item.references.length) {
+        const heading = document.createElement('h3'); heading.textContent = 'Reference images';
+        details.append(heading, imageGallery(item.references));
+      }
+      const outputHeading = document.createElement('h3'); outputHeading.textContent = 'Generated images';
+      details.append(outputHeading, imageGallery(item.images, true));
+      dialogContent.append(details); requestDialog.showModal(); dialogContent.scrollTo(0, 0);
+    }
+
+    $('#dialog-close').onclick = () => requestDialog.close();
+    requestDialog.addEventListener('click', event => { if (event.target === requestDialog) requestDialog.close(); });
+    $('#image-dialog-close').onclick = () => imageDialog.close();
+    imageDialog.addEventListener('click', event => { if (event.target === imageDialog) imageDialog.close(); });
+
+    async function deleteRequest(item) {
+      if (!window.confirm(`Delete request ${item.id}? This cannot be undone.`)) return;
+      const response = await fetch(`/api/history/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not delete request');
+      await loadHistory();
+    }
+
+    function renderHistory(items) {
+      historyGrid.replaceChildren();
+      historyCount.textContent = `${items.length} request${items.length === 1 ? '' : 's'}`;
+      if (!items.length) { historyGrid.innerHTML = '<div class="history-empty">No generation requests yet.</div>'; return; }
+      items.forEach(item => {
+        const card = document.createElement('article'); card.className = 'history-card';
+        const preview = new Image(); preview.src = item.thumbnail_url; preview.alt = `Open request ${item.id}`; preview.loading = 'lazy'; preview.tabIndex = 0;
+        preview.onclick = () => openDetails(item);
+        preview.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetails(item); } };
+        const info = document.createElement('div'); info.className = 'history-info';
+        const name = document.createElement('div'); name.className = 'history-name'; name.textContent = item.prompt || '(Image-only request)'; name.title = name.textContent;
+        const meta = document.createElement('div'); meta.className = 'history-meta'; meta.textContent = `${new Date(item.created_at).toLocaleString()} · ${item.image_count} images`;
+        const actions = document.createElement('div'); actions.className = 'history-actions';
+        const details = document.createElement('button'); details.type = 'button'; details.textContent = 'View details'; details.onclick = () => openDetails(item);
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
+        remove.onclick = () => deleteRequest(item).catch(requestError => { error.textContent = requestError.message; });
+        actions.append(details, remove); info.append(name, meta, actions); card.append(preview, info); historyGrid.append(card);
+      });
+    }
+
+    async function loadHistory() {
+      try {
+        const response = await fetch('/api/history');
+        if (!response.ok) throw new Error();
+        renderHistory((await response.json()).requests);
+      } catch (_) { historyGrid.innerHTML = '<div class="history-empty">History is unavailable.</div>'; historyCount.textContent = ''; }
+    }
+
+    input.addEventListener('change', () => { if (modelSupportsImages()) selectedFiles.push(...input.files); input.value = ''; renderFiles(); });
+    modelSelect.addEventListener('change', updateModelCapabilities);
+    ['dragenter', 'dragover'].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.add('dragging'); }));
+    ['dragleave', 'drop'].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.remove('dragging'); }));
+    dropzone.addEventListener('drop', event => { if (modelSupportsImages()) selectedFiles.push(...event.dataTransfer.files); renderFiles(); });
+    viewRequest.onclick = () => currentRequest && openDetails(currentRequest);
+
+    if (enhancePrompt) enhancePrompt.addEventListener('click', async () => {
+      error.textContent = '';
+      const prompt = promptInput.value.trim();
+      if (!prompt) { error.textContent = 'Add a prompt before enhancing it.'; promptInput.focus(); return; }
+      enhancePrompt.disabled = true;
+      enhancePrompt.textContent = 'Enhancing…';
+      try {
+        const body = new FormData();
+        body.append('prompt', prompt);
+        selectedFiles.forEach(file => body.append('images', file));
+        const response = await fetch('/api/enhance-prompt', { method: 'POST', body });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Enhancement failed (${response.status})`);
+        if (originalPrompt === null) originalPrompt = promptInput.value;
+        promptInput.value = payload.prompt;
+        discardEnhancement.style.display = 'inline-block';
+        promptInput.focus();
+      } catch (requestError) { error.textContent = requestError.message; }
+      finally { enhancePrompt.disabled = false; enhancePrompt.textContent = 'Enhance by LLM'; }
+    });
+
+    if (discardEnhancement) discardEnhancement.addEventListener('click', () => {
+      if (originalPrompt === null) return;
+      promptInput.value = originalPrompt;
+      originalPrompt = null;
+      discardEnhancement.style.display = 'none';
+      error.textContent = '';
+      promptInput.focus();
+    });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); error.textContent = '';
+      if (!form.prompt.value.trim() && !selectedFiles.length) { error.textContent = 'Add a prompt or at least one reference image.'; return; }
+      const body = new FormData(form);
+      body.delete('images'); selectedFiles.forEach(file => body.append('images', file));
+      submit.disabled = true; submit.textContent = 'Generating…'; empty.style.display = 'none'; resultGrid.style.display = 'none';
+      resultGrid.replaceChildren(); spinner.style.display = 'block'; viewRequest.style.display = 'none'; resultStatus.textContent = 'Generating — the first request may download the model';
+      try {
+        const response = await fetch('/generate', { method: 'POST', body });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.detail || payload.error || `Request failed (${response.status})`);
+        currentRequest = payload.request;
+        currentRequest.images.forEach(item => { const image = new Image(); image.src = item.url; image.alt = item.name; resultGrid.append(image); });
+        resultGrid.style.display = 'grid'; viewRequest.style.display = 'inline-block'; resultStatus.textContent = `${currentRequest.image_count} images generated and saved`;
+        await loadHistory();
+      } catch (requestError) { error.textContent = requestError.message; empty.style.display = 'block'; resultStatus.textContent = 'Generation failed'; }
+      finally { spinner.style.display = 'none'; submit.disabled = false; submit.textContent = 'Generate images'; }
+    });
+
+    updateModelCapabilities(); loadHistory();
+  </script>
+</body>
+</html>

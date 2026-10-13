@@ -1,0 +1,27 @@
+# Direct dependencies imported by app.py and config.py.
+# Preserve the versions and Diffusers source used by the Dockerfile.
+torch==2.10.0
+diffusers @ git+https://github.com/huggingface/diffusers.git@main
+flask
+huggingface-hub
+pillow
+pyyaml
+
+# Model loading, tokenization, and quantization dependencies from the Dockerfile.
+transformers
+accelerate
+bitsandbytes
+sentencepiece
+protobuf
+numpy==1.26.4
+torchvision==0.25.0
+torchaudio==2.10.0
+pytorch-lightning
+hf_xet
+
+# Production server used by the Dockerfile.
+gunicorn
+
+# For the Dockerfile's CUDA 12.9 wheels, install the pinned torch, torchvision,
+# and torchaudio versions with --index-url https://download.pytorch.org/whl/cu129
+# before installing this file.
